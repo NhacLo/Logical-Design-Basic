@@ -1,59 +1,50 @@
+from gesture_driver import GestureDriver
+from Vehicle_Control import ControlBrakeVehilce
 import cv2
-import numpy as np
-from gesture_driver import GestureDetector
-from Vehicle_Control import VehicleControl
 
 def main():
-    # Initialize gesture detector and vehicle control
-    gesture_detector = GestureDetector()
-    vehicle = VehicleControl()
+    # Initialize gesture driver and vehicle control
+    gesture_driver = GestureDriver()
+    vehicle = ControlBrakeVehilce()
     
     # Initialize camera
     cap = cv2.VideoCapture(0)
     
-    print("Gesture Control System Started")
+    print("Gesture Control Started...")
     print("Pointing -> Vehicle Run")
-    print("Open Hand -> Vehicle Stop")
+    print("Hold Hand -> Vehicle Stop")
     print("No Hand/Unknown -> Reset Vehicle")
     
-    try:
-        while True:
-            # Capture frame
-            ret, frame = cap.read()
-            if not ret:
-                print("Failed to capture frame")
-                break
-            
-            # Detect gesture
-            gesture = gesture_detector.detect(frame)
-            
-            # Control vehicle based on gesture
-            if gesture == "GO_AHEAD":
-                print("Gesture: Pointing -> Vehicle Running")
-                vehicle.brake_off()
-            elif gesture == "BRAKE_ON":
-                print("Gesture: Open Hand -> Vehicle Stopped")
-                vehicle.brake_on()
-            else:
-                print("Gesture: None/Unknown -> Vehicle Reset")
-                vehicle.reset()
-            
-            # Display frame (optional)
-            cv2.imshow("Gesture Control", frame)
-            
-            # Exit on 'q' key
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-                
-    except KeyboardInterrupt:
-        print("\nStopping gesture control system...")
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        
+        # Get gesture recognition result
+        gesture_result = gesture_driver.recognize(frame)
+        
+        # Control vehicle based on gesture
+        if gesture_result == "GO_AHEAD":
+            vehicle.brake_off()
+            print("Gesture: Pointing -> Vehicle Running")
+        elif gesture_result == "BRAKE_ON":
+            vehicle.brake_on()
+            print("Gesture: Hold Hand -> Vehicle Stopped")
+        else:
+            vehicle.reset()
+            print("Gesture: None/Unknown -> Vehicle Reset")
+        
+        # Display frame
+        cv2.imshow("Gesture Control", frame)
+        
+        # Press 'q' to quit
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
     
-    finally:
-        # Cleanup
-        vehicle.reset()
-        cap.release()
-        cv2.destroyAllWindows()
-        print("System stopped safely")
+    # Cleanup
+    cap.release()
+    cv2.destroyAllWindows()
+    vehicle.reset()
 
 if __name__ == "__main__":
     main()
