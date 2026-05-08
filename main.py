@@ -4,64 +4,60 @@ from gesture_driver import GestureDriver
 from VehicleControl import ControlBrakeVehicle
 
 def main():
-    # Initialize the recognizer and the UDP control sender
-    driver = GestureDriver()
+    """
+    Main function to run the vehicle control system based on hand gestures.
+    """
+    gesture_driver = GestureDriver()
     vehicle = ControlBrakeVehicle()
-    
-    # Initialize camera (Raspberry Pi 4 or Jetson Nano)
     cap = cv2.VideoCapture(0)
-    
-    print("System Online. Controls:")
-    print("- Pointing_Up -> RUN (Brake Off)")
-    print("- Closed_Fist -> STOP (Brake On)")
-    print("- No Hand/Unknown -> RESET")
+
+    if not cap.isOpened():
+        print("Error: Could not open camera.")
+        return
+
+    previous_state = None
 
     try:
-        while cap.isOpened():
-            success, frame = cap.read()
-            if not success:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                print("Error: Can't receive frame (stream end?). Exiting ...")
                 break
 
-            # Convert BGR to RGB for MediaPipe processing
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            timestamp = int(time.time() * 1000)
+            timestamp_ms = int(time.time() * 1000)
 
-            # 1. Process the frame for gestures
-            state, label, score, landmarks = driver.process(rgb_frame, timestamp)
+            # Process the frame to recognize gestures
+            state, label, score, landmarks = gesture_driver.process(frame, timestamp_ms)
 
-            # 2. Logic for Vehicle Control
-            if state == "GO_AHEAD":
-                # 'Pointing_Up' sends 0x00 to release the brake
-                vehicle.brake_off() 
-                status_text = "RUNNING (Brake Off)"
-                color = (0, 255, 0)
-            elif state == "BRAKE_ON":
-                # 'Closed_Fist' sends 0x01 to apply the brake
-                vehicle.brake_on()
-                status_text = "STOPPED (Brake On)"
-                color = (0, 0, 255)
-            else:
-                # No hand detected or unknown gesture sends 0x02
-                vehicle.reset()
-                status_text = "RESET / IDLE"
-                color = (255, 255, 255)
-
-            # 3. Visual Feedback for Thesis Presentation
-            driver.draw_landmarks(frame, landmarks)
-            cv2.putText(frame, status_text, (10, 50), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+            # Control the vehicle based on the gesture state, only on state change
+            if state != previous_state:
+                if state == "GO_AHEAD":
+                    print("State changed to GO_AHEAD: Releasing brake.")
+                    vehicle.brake_off()
+                elif state == "BRAKE_ON":
+                    print("State changed to BRAKE_ON: Applying brake.")
+                    vehicle.brake_on()
+                elif state is None:
+                    print("State changed to None: Resetting vehicle.")
+                    vehicle.reset()
             
-            cv2.imshow('Driver Monitoring System', frame)
+            previous_state = state
 
+            # Display the frame (optional, for debugging)
+            # You can add visualization of landmarks here if needed
+            cv2.imshow('Gesture Vehicle Control', frame)
+
+            # Exit loop on 'q' key press
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
-
     finally:
-        # Cleanup and safety reset
+        # Cleanup resources
+        print("Exiting application...")
         cap.release()
         cv2.destroyAllWindows()
-        driver.close()
+        # Ensure vehicle is in a safe state on exit
         vehicle.reset()
+        print("Application terminated.")
 
 if __name__ == "__main__":
     main()
