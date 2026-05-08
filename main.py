@@ -1,78 +1,72 @@
 import cv2
 import time
-from gesture_driver import GestureDriver
+from DMS_Driver import DMSDriver
 from VehicleControl import ControlBrakeVehicle
-
+ 
 def main():
     """
-    Main function to run the gesture-based vehicle control system.
+    Main function to run the driver monitoring system and control the vehicle.
     """
-    # Initialize GestureDriver and ControlBrakeVehicle
-    driver = GestureDriver()
-    vehicle = ControlBrakeVehicle()
-
-    # Initialize video capture
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        print("Error: Could not open video stream.")
-        return
-
-    status_text = "INITIALIZING"
-    color = (255, 255, 255) # White
-
+    dms = None
+    vehicle = None
+    cap = None
     try:
-        while cap.isOpened():
-            ret, frame = cap.read()
+        # Initialize DMS Driver, Vehicle Control, and Video Capture
+        dms = DMSDriver()
+        vehicle = ControlBrakeVehicle()
+        cap = cv2.VideoCapture(0)
+ 
+        if not cap.isOpened():
+            print("Error: Could not open video stream.")
+            return
+ 
+        last_status = -1  # Initialize with a value that won't match any status code
+ 
+        print("Starting Driver Monitoring System...")
+        print("Press 'q' to quit.")
+ 
+        while True:
+            # Capture frame-by-frame
+            ret, frame_bgr = cap.read()
             if not ret:
-                print("Error: Can't receive frame (stream end?). Exiting ...")
+                print("Error: Failed to capture frame.")
                 break
-
-            # Flip the frame horizontally for a later selfie-view display
-            frame = cv2.flip(frame, 1)
-
-            # Get current timestamp in milliseconds
-            timestamp_ms = int(time.time() * 1000)
-
-            # Convert the BGR frame to RGB for processing
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-            # Process the frame to recognize gestures
-            state, label, score, landmarks = driver.process(rgb_frame, timestamp_ms)
-
-            # Control the vehicle based on the recognized gesture state
-            if state == "GO_AHEAD":
-                vehicle.brake_on()
-                status_text = "STOPPED (Brake On)"
-                color = (0, 0, 255)  # Red
-            elif state == "BRAKE_ON":
-                vehicle.brake_off()
-                status_text = "RUNNING (Brake Off)"
-                color = (0, 255, 0)  # Green
-            else:
-                vehicle.reset()
-                status_text = "RESET / IDLE"
-                color = (255, 255, 255) # White
-
-            # Draw landmarks on the BGR frame for visualization
-            if landmarks:
-                driver.draw_landmarks(frame, landmarks)
-
-            # Display the status text on the frame
-            cv2.putText(frame, status_text, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
-
-            # Show the frame
-            cv2.imshow('Gesture Vehicle Control', frame)
-
-            # Break the loop if 'q' is pressed
+ 
+            # Update DMS with the current frame
+            output_frame, status_code, status_str = dms.update(frame_bgr)
+ 
+            # Control vehicle based on DMS status, only sending commands on change
+            if status_code != last_status:
+                if status_code == 0x03:  # DANGER (e.g., eyes closed, drowsiness)
+                    vehicle.brake_on()
+                    print(f"STATUS CHANGE: DANGER DETECTED ({status_str}). Engaging brake.")
+                elif status_code == 0x00:  # NORMAL
+                    vehicle.brake_off()
+                    print(f"STATUS CHANGE: Driver is NORMAL ({status_str}). Disengaging brake.")
+                elif status_code == 0x16:  # WARNING
+                    # No brake action for warning, just log it
+                    print(f"STATUS CHANGE: WARNING ({status_str}).")
+                last_status = status_code
+ 
+            # Display the resulting frame with DMS info
+            cv2.imshow('DMS Driver Monitoring', output_frame)
+ 
+            # Break the loop when 'q' is pressed
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+ 
+    except Exception as e:
+        print(f"An error occurred: {e}")
+ 
     finally:
-        # Release resources
-        print("Cleaning up resources...")
-        cap.release()
+        print("\nExiting program...")
+        if cap is not None:
+            cap.release()
+        if dms is not None:
+            dms.close()
+        if vehicle is not None:
+            vehicle.reset()  # Ensure vehicle is in a safe state on exit
         cv2.destroyAllWindows()
-        # Ensure vehicle is in a safe state on exit
-        vehicle.reset()
-
+        print("Cleanup complete.")
+ 
 if __name__ == "__main__":
-    main()
