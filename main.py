@@ -41,13 +41,13 @@ def main():
 
             # Control the vehicle based on the recognized gesture state
             if state == "GO_AHEAD":
-                vehicle.brake_off()
-                status_text = "RUNNING (Brake Off)"
-                color = (0, 255, 0)  # Green
-            elif state == "BRAKE_ON":
                 vehicle.brake_on()
                 status_text = "STOPPED (Brake On)"
                 color = (0, 0, 255)  # Red
+            elif state == "BRAKE_ON":
+                vehicle.brake_off()
+                status_text = "RUNNING (Brake Off)"
+                color = (0, 255, 0)  # Green
             else:
                 vehicle.reset()
                 status_text = "RESET / IDLE"
