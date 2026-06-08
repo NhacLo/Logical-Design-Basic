@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>ECA Ultimate Countdown</title>
+
+<style>
+body {
+  margin: 0;
+  height: 100vh;
+  background: radial-gradient(circle, #1a1a1a, #000);
+  font-family: Arial, sans-serif;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+/* LOGO */
+.logo-bg {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30vw;
+  opacity: 0.06;
+  animation: pulse 4s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.04; }
+  50% { opacity: 0.1; }
+  100% { opacity: 0.04; }
+}
+
+/* CONTAINER */
+.container {
+  text-align: center;
+  z-index: 2;
+}
+
+/* TIMER BOX */
+.timer {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.time-box {
+  background: rgba(0,0,0,0.6);
+  border: 2px solid #EA0016;
+  border-radius: 12px;
+  padding: 15px;
+  min-width: 80px;
+  box-shadow: 0 0 15px rgba(234,0,22,0.5);
+}
+
+.time-box span {
+  font-size: 30px;
+  font-weight: bold;
+}
+
+/* READY TEXT */
+.ready-text {
+  margin-top: 20px;
+  color: #EA0016;
+  font-size: 24px;
+  animation: glow 1.5s infinite alternate;
+}
+
+@keyframes glow {
+  from { text-shadow: 0 0 10px #EA0016; }
+  to { text-shadow: 0 0 40px #EA0016; }
+}
+
+/* FINAL COUNTDOWN */
+.final {
+  font-size: 120px;
+  font-weight: bold;
+  color: #EA0016;
+  animation: zoom 1s;
+}
+
+@keyframes zoom {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1.2); opacity: 1; }
+}
+
+/* FLASH */
+.flash {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  background: white;
+  opacity: 0;
+  z-index: 5;
+}
+
+/* CANVAS */
+canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+</style>
+</head>
+
+<body>
+
+<!-- LOGO -->
+<img src="bosch-logo.png" class="logo-bg">
+
+<!-- MUSIC -->
+<audio id="bg" src="background.mp3" loop></audio>
+
+<!-- FLASH -->
+<div class="flash" id="flash"></div>
+
+<!-- FIREWORK -->
+<canvas id="fireworks"></canvas>
+
+<div class="container">
+
+  <h1>🔥 ECA Team Building 🔥</h1>
+
+  <!-- TIMER -->
+  <div class="timer" id="timer">
+    <div class="time-box"><span id="d">00</span><p>D</p></div>
+    <div class="time-box"><span id="h">00</span><p>H</p></div>
+    <div class="time-box"><span id="m">00</span><p>M</p></div>
+    <div class="time-box"><span id="s">00</span><p>S</p></div>
+  </div>
+
+  <!-- FINAL -->
+  <div id="final" class="final"></div>
+
+  <div class="ready-text">ECA Team – Ready to Go!</div>
+
+</div>
+
+<script>
+const target = new Date("June 12, 2026 05:00:00").getTime();
+const bg = document.getElementById("bg");
+
+let started = false;
+
+/* ENABLE MUSIC */
+document.body.addEventListener("click", () => {
+  bg.play();
+}, { once: true });
+
+function update() {
+  const now = new Date().getTime();
+  const dist = target - now;
+
+  if (dist <= 0) {
+    go();
+    return;
+  }
+
+  const d = Math.floor(dist / (1000*60*60*24));
+  const h = Math.floor((dist%(1000*60*60*24))/(1000*60*60));
+  const m = Math.floor((dist%(1000*60*60))/(1000*60));
+  const s = Math.floor((dist%(1000*60))/1000);
+
+  if (dist < 10000 && !started) {
+    cinematic(s);
+    started = true;
+  } else {
+    document.getElementById("d").innerText = d;
+    document.getElementById("h").innerText = h;
+    document.getElementById("m").innerText = m;
+    document.getElementById("s").innerText = s;
+  }
+}
+
+setInterval(update, 1000);
+
+/* CINEMATIC MODE */
+function cinematic(sec) {
+  document.getElementById("timer").style.display = "none";
+
+  let count = sec;
+
+  const interval = setInterval(() => {
+
+    if (count <= 0) {
+      clearInterval(interval);
+      go();
+      return;
+    }
+
+    document.getElementById("final").innerHTML = count;
+
+    flash();
+
+    count--;
+
+  }, 1000);
+}
+
+/* FINAL */
+function go() {
+  document.getElementById("final").innerHTML = "🚀 GO!!!";
+
+  bg.volume = 1;
+
+  flash();
+  startFireworks();
+}
+
+/* FLASH */
+function flash() {
+  const f = document.getElementById("flash");
+  f.style.opacity = 0.8;
+  setTimeout(() => f.style.opacity = 0, 120);
+}
+
+/* FIREWORK */
+function startFireworks() {
+  const canvas = document.getElementById("fireworks");
+  const ctx = canvas.getContext("2d");
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const colors = ["#EA0016","#EA0016","#FFFFFF","#777"];
+  const particles = [];
+
+  setInterval(() => {
+    const x = Math.random()*canvas.width;
+    const y = Math.random()*canvas.height/2;
+
+    for(let i=0;i<60;i++){
+      particles.push({
+        x,y,
+        angle:Math.random()*2*Math.PI,
+        speed:Math.random()*5,
+        life:100,
+        color:colors[Math.floor(Math.random()*colors.length)]
+      });
+    }
+  },300);
+
+  function draw(){
+    ctx.fillStyle="rgba(0,0,0,0.2)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    particles.forEach((p,i)=>{
+      p.x+=Math.cos(p.angle)*p.speed;
+      p.y+=Math.sin(p.angle)*p.speed;
+      p.life--;
+
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,2,0,Math.PI*2);
+      ctx.fillStyle=p.color;
+      ctx.fill();
+
+      if(p.life<=0) particles.splice(i,1);
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  draw();
+}
+</script>
+
+</body>
+</html>
